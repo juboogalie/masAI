@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAS Offline + DuckDuckGo</title>
+<style>
+body{background:#0f1221;color:#f2f3f7;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0}
+.chat{width:90%;max-width:600px;height:50%;background:#171a2a;padding:10px;overflow-y:auto;border-radius:12px;margin-bottom:10px;display:flex;flex-direction:column}
+.msg{margin:6px 0;padding:8px 12px;border-radius:10px;max-width:80%;word-wrap:break-word}
+.bot{background:#1e2240;align-self:flex-start}
+.user{background:#2a2f4a;align-self:flex-end}
+.inputRow{display:flex;width:90%;max-width:600px;gap:10px}
+input{flex:1;padding:10px;border-radius:8px;border:none;outline:none;background:#12152a;color:#f2f3f7}
+button{width:80px;padding:10px;border:none;border-radius:8px;background:#7aa2ff;color:#0f1221;font-weight:bold;cursor:pointer}
+iframe{width:90%;max-width:600px;height:300px;border:none;border-radius:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="chat" id="chat"></div>
+<div class="inputRow">
+  <input type="text" id="input" placeholder="Talk to MAS...">
+  <button id="sendBtn">Send</button>
+</div>
+<iframe id="previewFrame"></iframe>
+<script>
+const chatEl=document.getElementById('chat');
+const inputEl=document.getElementById('input');
+const previewFrame=document.getElementById('previewFrame');
+
+function addMessage(text,who='bot'){
+  const msg=document.createElement('div');
+  msg.className='msg '+who;
+  msg.textContent=text;
+  chatEl.appendChild(msg);
+  chatEl.scrollTop=chatEl.scrollHeight;
+  updatePreview();
+}
+
+function updatePreview(){
+  previewFrame.srcdoc=`<html><body style='background:#0f1221;color:#f2f3f7;font-family:sans-serif;padding:10px;'>${chatEl.innerHTML}</body></html>`;
+}
+
+function solveMath(text){
+  try{
+    let clean=text.replace(/x/gi,'*'); // replace x with * for multiplication
+    clean=clean.replace(/[^0-9+\-*/(). ]/g,'');
+    const r=eval(clean);
+    if(!isNaN(r))return r.toString();
+  }catch(e){}
+  return null;
+}
+
+async function getMASReply(text){
+  const t=text.toLowerCase().trim();
+  // Discord link
+  if(t.includes('discord'))return 'Join our Discord: https://discord.gg/fgReN9XpEY';
+  // Greetings
+  if(['hi','h','hello'].includes(t))return 'Hello! Nice to see you!';
+  if(t.includes('how are you'))return 'I am doing great, thank you!';
+  if(t==='bye')return 'Goodbye! Come back soon!';
+  // Math
+  const mathAns=solveMath(text);
+  if(mathAns!==null)return 'The answer is '+mathAns;
+  // DuckDuckGo instant answer
+  try{
+    const query=encodeURIComponent(text);
+    const res=await fetch(`https://api.duckduckgo.com/?q=${query}&format=json&no_html=1&skip_disambig=1`);
+    const data=await res.json();
+    if(data.AbstractText)return data.AbstractText;
+  }catch(e){}
+  // fallback
+  const replies=['Hmm, interesting!','I see! What else?','Cool, go on...','Wow, I didn’t know that.'];
+  return replies[Math.floor(Math.random()*replies.length)];
+}
+
+async function sendMessage(){
+  const msg=inputEl.value.trim();
+  if(!msg)return;
+  addMessage(msg,'user');
+  inputEl.value='';
+  const reply=await getMASReply(msg);
+  addMessage(reply,'bot');
+}
+
+document.getElementById('sendBtn').addEventListener('click',sendMessage);
+inputEl.addEventListener('keypress',e=>{if(e.key==='Enter')sendMessage()});
+
+addMessage('Hello! I am MAS, your chatbot. Type "discord" for our server.','bot');
+</script>
+</body>
+</html>
